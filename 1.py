@@ -62,11 +62,13 @@ def post_request():
                 availability[time_slot] = "Error"
         
         # 将当天的空闲情况添加到表格中
-        availability_table = availability_table.append(availability, ignore_index=True)
+        availability_table.loc[len(availability_table)] =availability
     
     # 输出空闲时间段表格
     print("\n接下来几天的羽毛球场空闲时间段如下:")
     print(availability_table.transpose().to_markdown(index=True))
+    
+    input("按回车键退出......")
 
 if __name__ == "__main__":
     post_request()
