@@ -1,6 +1,6 @@
 自动获取接下来2天的各个场馆空闲情况
 
-**输入** （获取方式略）
+**输入** （在[学生和教工场馆借用申请](https://oa.shanghaitech.edu.cn/workflow/request/AddRequest.jsp?workflowid=14862) 的cookie中）
 ```
 请输入 shkjdx_session 的值: 
 ```
