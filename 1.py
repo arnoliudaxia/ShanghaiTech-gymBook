@@ -6,6 +6,54 @@ import pandas as pd
 import time
 import webbrowser
 
+Version="v1.2"
+print(f"当前版本 {Version}")
+
+
+def get_latest_tag():
+    # GitHub API URL
+    url = "https://gh-proxy.com/api.github.com/repos/arnoliudaxia/ShanghaiTech-gymBook/tags"
+
+    # 设置请求头
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+    }
+
+    # 发送 GET 请求
+    response = requests.get(url, headers=headers, timeout=2)
+
+    # 检查请求是否成功
+    if response.status_code == 200:
+        tags = response.json()
+        if tags:
+            # 返回最新的标签
+            return tags[0]['name']
+        else:
+            return "没有找到标签"
+    else:
+        return f"请求失败，状态码: {response.status_code}"
+
+def check_for_update(current_version, latest_version):
+    # 比较版本号
+    if current_version != latest_version:
+        print(f"有新版本可用: {latest_version}")
+        # 打开 GitHub Releases 页面
+        webbrowser.open(f"https://github.com/arnoliudaxia/ShanghaiTech-gymBook/releases/tag/{latest_version}")
+    else:
+        print("当前版本是最新的。")
+
+# 获取最新标签
+latest_tag = get_latest_tag()
+
+# 检查是否需要更新
+if latest_tag and "请求失败" not in latest_tag:
+    check_for_update(Version, latest_tag)
+else:
+    webbrowser.open(f"https://github.com/arnoliudaxia/ShanghaiTech-gymBook/releases/tag/{latest_tag}")
+
+exit(0)
+
 def post_request():
     
     # 获取今天的日期（UTC+8时区）
@@ -42,8 +90,8 @@ def post_request():
         # 创建一个DataFrame来存储所有场地的空闲时间段
         availability_table = pd.DataFrame(columns=["Date"] + time_slots)
         
-        for i in range(2): # 只能看后两天的
-            request_date = today  + datetime.timedelta(days=i + 1)
+        for i in range(3): # 只能看后两天的
+            request_date = today  + datetime.timedelta(days=i)
             formatted_date = request_date.strftime("%Y-%m-%d")
             availability = {"Date": formatted_date}
 
