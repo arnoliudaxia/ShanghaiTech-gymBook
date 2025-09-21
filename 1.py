@@ -5,6 +5,7 @@ import json
 import pandas as pd
 import time
 import webbrowser
+from sys import exit
 
 Version="v1.2"
 print(f"当前版本 {Version}")
