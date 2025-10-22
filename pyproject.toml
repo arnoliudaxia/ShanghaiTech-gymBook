@@ -1,0 +1,22 @@
+[project]
+name = "shanghaitech-gymbook"
+version = "2.0.0"
+description = "上科大体育场馆预订查询系统"
+requires-python = ">=3.8"
+dependencies = [
+    "pandas>=2.0",
+    "pytz>=2024.2",
+    "requests",
+    "icecream",
+    "rich",
+    "selenium",
+    "python-dotenv",
+    "streamlit",
+]
+
+[[tool.uv.index]]
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+default = true
+ 
+[tool.uv.pip]
+index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"

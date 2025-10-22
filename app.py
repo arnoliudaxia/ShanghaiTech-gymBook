@@ -12,7 +12,6 @@ st.set_page_config(
 
 # 标题
 st.title("🏃 上科大体育场馆空闲时间查询")
-st.markdown("---")
 
 # 数据目录
 data_dir = "data"
@@ -28,6 +27,14 @@ csv_files = list(Path(data_dir).glob("*.csv"))
 if not csv_files:
     st.warning(f"⚠️ 在 '{data_dir}' 目录中没有找到CSV文件，请先运行 main.py 获取数据")
     st.stop()
+
+# 获取最新的文件修改时间作为全局更新时间
+from datetime import datetime
+latest_mtime = max(os.path.getmtime(f) for f in csv_files)
+latest_update_time = datetime.fromtimestamp(latest_mtime).strftime("%Y-%m-%d %H:%M:%S")
+st.info(f"📅 数据最后更新时间: **{latest_update_time}**")
+
+st.markdown("---")
 
 # 场地emoji映射
 venue_emojis = {
@@ -47,12 +54,6 @@ for tab, csv_file, venue_name in zip(tabs, csv_files, venue_names):
         try:
             # 读取CSV文件
             df = pd.read_csv(csv_file)
-            
-            # 显示最后更新时间
-            file_mtime = os.path.getmtime(csv_file)
-            from datetime import datetime
-            update_time = datetime.fromtimestamp(file_mtime).strftime("%Y-%m-%d %H:%M:%S")
-            st.caption(f"📅 最后更新时间: {update_time}")
             
             # 转置数据框以便更好地显示
             # 将Date列设为索引
