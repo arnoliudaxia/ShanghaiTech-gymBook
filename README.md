@@ -1,11 +1,67 @@
-自动获取接下来2天的各个场馆空闲情况
+# 上科大体育场馆预订查询系统
 
-**输入** （在[学生和教工场馆借用申请](https://oa.shanghaitech.edu.cn/workflow/request/AddRequest.jsp?workflowid=14862) 的cookie中）
+自动获取接下来3天的各个场馆空闲情况，并提供可视化界面查看。
+
+## 功能特点
+
+- 🔍 自动查询羽毛球场、乒乓球场、网球场、匹克球场的空闲时段
+- 💾 将查询结果保存为CSV文件
+- 🎨 提供Streamlit可视化界面，美观展示空闲情况
+
+## 准备工作
+
+1. 将`.env.example`重命名为`.env`
+2. 填写你的egate用户名和密码（仅存储在本地，不会上传）
+
 ```
-请输入 shkjdx_session 的值: 
+MYUSERNAME=你的用户名
+PASSWORD=你的密码
 ```
 
-**输出**
+## 安装依赖
+
+```bash
+pip install -r requirements.txt
+```
+
+或使用uv:
+```bash
+uv sync
+```
+
+## 使用方法
+
+### 1. 获取数据
+
+运行主程序获取最新的场馆空闲数据:
+
+```bash
+python main.py
+```
+
+或使用uv:
+```bash
+uv run main.py
+```
+
+数据将保存在`data`目录下的CSV文件中。
+
+### 2. 查看可视化界面
+
+启动Streamlit应用查看数据:
+
+```bash
+streamlit run app.py
+```
+
+或使用uv:
+```bash
+uv run streamlit run app.py
+```
+
+浏览器会自动打开，显示美观的场馆空闲时间表。
+
+**输出（示例）**
 
 接下来几天的🏸羽毛球场空闲时间段如下:
 |             | 0          | 1          |
@@ -55,11 +111,20 @@
 | 20:00-21:00 | 有          | 有          |
 | 21:00-22:00 | 有          | 有          |
 
-## 编译
 
-`pyinstaller 1.spec`
+## 数据说明
+
+- **绿色**: 该时段有空位可预订
+- **灰色**: 该时段已被预订或不可用
+- **粉色**: 查询该时段时出现错误
 
 ## 版本历史
 
+- v2.0
+  - 新增数据保存功能，将查询结果保存为CSV文件
+  - 新增Streamlit可视化界面
+  - 优化数据展示，支持多标签页查看不同场馆
+- v1.3
+  - 每次写cookie还是太麻烦了，使用selenium来模拟登录自动获取cookie
 - v1.2
   - 检查当天情况+版本检查更新

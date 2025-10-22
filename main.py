@@ -32,9 +32,12 @@ password = os.getenv("PASSWORD")
 
 # 设置Chrome选项
 chrome_options = Options()
-# chrome_options.add_argument("--headless")  # 无头模式
+chrome_options.add_argument("--headless")  # 无头模式
 chrome_options.add_argument("--disable-gpu")
 chrome_options.add_argument("--no-sandbox")
+# chrome_options.add_argument("--disable-dev-shm-usage")  # 解决资源限制问题
+# chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # 避免被检测为自动化
+# chrome_options.add_argument(f"--user-data-dir=/tmp/chrome_user_data_{os.getpid()}")  # 使用唯一的用户数据目录
 
 # 启动Chrome浏览器
 driver = webdriver.Chrome(options=chrome_options)
@@ -96,6 +99,10 @@ if session_value:
         "16:00-17:00", "17:00-18:00", "18:00-19:00", "19:00-20:00", "20:00-21:00", "21:00-22:00"
     ]
 
+    # 创建data目录用于存储输出文件
+    output_dir = "data"
+    os.makedirs(output_dir, exist_ok=True)
+    
     for venue in venues:
         # 创建一个DataFrame来存储所有场地的空闲时间段
         availability_table = pd.DataFrame(columns=["Date"] + time_slots)
@@ -164,3 +171,15 @@ if session_value:
         
         console.print(table)
         console.print(f"[bold cyan]{'='*60}[/bold cyan]\n")
+        
+        # 保存DataFrame到CSV文件
+        # 生成安全的文件名(移除emoji和特殊字符)
+        safe_venue_name = venue['display_name'].strip()
+        if not safe_venue_name:
+            # 如果移除emoji后为空,使用原始name字段
+            safe_venue_name = venue['name']
+        
+        # 保存为CSV格式(直接覆盖旧文件)
+        csv_filename = os.path.join(output_dir, f"{safe_venue_name}.csv")
+        availability_table.to_csv(csv_filename, index=False, encoding='utf-8-sig')
+        console.print(f"[green]✓ 已保存CSV文件: {csv_filename}[/green]")

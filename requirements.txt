@@ -5,3 +5,6 @@ requests
 tabulate
 icecream
 rich
+selenium
+dotenv
+streamlit
