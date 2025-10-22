@@ -3,3 +3,5 @@ pytz==2024.2
 pyinstaller
 requests
 tabulate
+icecream
+rich

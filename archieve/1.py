@@ -52,7 +52,6 @@ if latest_tag and "请求失败" not in latest_tag:
 else:
     webbrowser.open(f"https://github.com/arnoliudaxia/ShanghaiTech-gymBook/releases/tag/{latest_tag}")
 
-exit(0)
 
 def post_request():
     
