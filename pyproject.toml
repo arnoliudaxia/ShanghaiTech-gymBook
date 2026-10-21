@@ -9,9 +9,8 @@ dependencies = [
     "requests",
     "icecream",
     "rich",
-    "selenium",
+    "pycryptodome",
     "python-dotenv",
-    "streamlit",
 ]
 
 [[tool.uv.index]]

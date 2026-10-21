@@ -1,10 +1,7 @@
-pandas==2.2.3
-pytz==2024.2
-pyinstaller
+pandas>=2.0
+pytz>=2024.2
 requests
-tabulate
 icecream
 rich
-selenium
-dotenv
-streamlit
+pycryptodome
+python-dotenv

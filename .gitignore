@@ -7,3 +7,6 @@ dist/
 .idea/
 
 data/
+
+# 定时任务运行日志
+cron.log

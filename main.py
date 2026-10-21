@@ -3,12 +3,12 @@ import requests
 import datetime
 import pytz
 import json
+import base64
+import socket
+from urllib.parse import urljoin
 import pandas as pd
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
 from dotenv import load_dotenv
 import os
 from icecream import ic
@@ -30,47 +30,114 @@ load_dotenv()
 username = os.getenv("MYUSERNAME")
 password = os.getenv("PASSWORD")
 
-# 设置Chrome选项
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # 无头模式
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--no-sandbox")
-# chrome_options.add_argument("--disable-dev-shm-usage")  # 解决资源限制问题
-# chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # 避免被检测为自动化
-# chrome_options.add_argument(f"--user-data-dir=/tmp/chrome_user_data_{os.getpid()}")  # 使用唯一的用户数据目录
+# 将校园服务域名解析到内网 IP，绕过 Clash fake-ip 劫持
+# （TLS SNI 仍使用原域名，证书校验不受影响）
+INTERNAL_IPS = {
+    "oa.shanghaitech.edu.cn": "10.15.44.82",
+    "ids.shanghaitech.edu.cn": "10.15.44.192",
+}
+_orig_getaddrinfo = socket.getaddrinfo
 
-# 启动Chrome浏览器
-driver = webdriver.Chrome(options=chrome_options)
+def _patched_getaddrinfo(host, port, *args, **kwargs):
+    host = INTERNAL_IPS.get(host, host)
+    return _orig_getaddrinfo(host, port, *args, **kwargs)
 
-try:
-    # 打开登录页面
-    driver.get("https://oa.shanghaitech.edu.cn/workflow/request/AddRequest.jsp?workflowid=14862")
+socket.getaddrinfo = _patched_getaddrinfo
 
-    # 输入用户名
-    username_input = driver.find_element(By.ID, "username")
-    username_input.send_keys(username)
+OA_BASE_URL = "https://oa.shanghaitech.edu.cn"
+LOGIN_ENTRY = f"{OA_BASE_URL}/workflow/request/AddRequest.jsp?workflowid=14862"
 
-    # 输入密码
-    password_input = driver.find_element(By.ID, "password")
-    password_input.send_keys(password)
-    password_input.send_keys(Keys.RETURN)
 
-    # 等待页面加载
-    time.sleep(5)
+class LoginError(Exception):
+    pass
 
-    # 获取cookie中的shkjdx_session的值
-    session_value = None
-    cookies = driver.get_cookies()
-    for cookie in cookies:
-        if cookie['name'] == 'shkjdx_session':
-            session_value = cookie['value']
-            ic(session_value)
-            console.print(f"[green]✓ 成功获取session: {session_value[:20]}...[/green]")
+
+def encrypt_password(password: str, salt: str) -> str:
+    """CAS 登录密码加密：AES-CBC，key 为 pwdEncryptSalt，固定 IV"""
+    prefix = b"Nu1L" * 16
+    combined = prefix + password.encode()
+    iv = b"Nu1LNu1LNu1LNu1L"
+    key = salt.encode()
+    encrypted = AES.new(key, AES.MODE_CBC, iv).encrypt(pad(combined, AES.block_size))
+    return base64.b64encode(encrypted).decode()
+
+
+def _collect_data(html: str, name: str, end_tag: str = "/>") -> str:
+    """从 CAS 登录页 HTML 中提取隐藏字段的 value"""
+    start = html.find(f'id="{name}"') if name == "pwdEncryptSalt" else html.find(f'name="{name}"')
+    if start == -1:
+        return ""
+    end = html.find(end_tag, start)
+    raw = html[start:end]
+    value_start = raw.find('value="') + 7
+    value_end = raw.find('"', value_start)
+    return raw[value_start:value_end]
+
+
+def login_oa(student_id: str, password: str) -> str:
+    """通过学校 CAS 统一认证登录 OA 系统，返回 shkjdx_session 的值"""
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+    })
+
+    # 访问 OA 受保护页面，被重定向到 CAS 登录页
+    resp = session.get(LOGIN_ENTRY, allow_redirects=False, timeout=30)
+    if not (300 <= resp.status_code < 400):
+        raise LoginError(f"OA入口未返回重定向，状态码 {resp.status_code}")
+
+    for _ in range(10):
+        resp = session.get(urljoin(resp.url, resp.headers["Location"]),
+                           allow_redirects=False, timeout=30)
+        if resp.status_code == 200:
             break
+        if not (300 <= resp.status_code < 400):
+            raise LoginError(f"重定向链中断，状态码 {resp.status_code}")
 
-finally:
-    # 关闭浏览器
-    driver.quit()
+    ids_html = resp.text
+    salt = _collect_data(ids_html, "pwdEncryptSalt")
+    execution = _collect_data(ids_html, "execution")
+    lt = _collect_data(ids_html, "lt")
+    if not salt or not execution:
+        raise LoginError("未能从CAS登录页提取 pwdEncryptSalt/execution")
+
+    # 提交登录表单
+    form_data = {
+        "username": student_id,
+        "password": encrypt_password(password, salt),
+        "lt": lt,
+        "dllt": "generalLogin",
+        "execution": execution,
+        "_eventId": "submit",
+        "rmShown": "1",
+    }
+    post_resp = session.post(resp.url, data=form_data, allow_redirects=False, timeout=30)
+
+    # 跟随重定向回到 OA，session 自动携带种下的 cookie
+    for _ in range(10):
+        if not (300 <= post_resp.status_code < 400):
+            break
+        post_resp = session.get(urljoin(post_resp.url, post_resp.headers.get("Location", "")),
+                                allow_redirects=False, timeout=30)
+
+    if any(k in post_resp.text for k in ("authError", "用户名或密码", "incorrectPassword")):
+        raise LoginError("用户名或密码错误")
+
+    session_value = session.cookies.get("shkjdx_session")
+    if not session_value:
+        raise LoginError("登录流程结束但未拿到 shkjdx_session cookie")
+    return session_value
+
+
+# 执行 CAS 登录
+session_value = None
+try:
+    session_value = login_oa(username, password)
+    ic(session_value[:20] + "...")  # 只显示session值的前20个字符
+    console.print(f"[green]✓ CAS登录成功，已获取session[/green]")
+except Exception as e:
+    console.print(f"[red]✗ 登录流程出现异常: {e}[/red]")
 
 # 如果成功获取到session_value，继续获取场地空闲信息
 if session_value:
